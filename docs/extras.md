@@ -89,6 +89,54 @@ relaunch that ends after its session ended, or after a newer relaunch of the
 same browser started, reports nothing. This is not a guarantee that every web
 app will keep working while the lid is closed.
 
+## Start a session on a schedule
+
+Insomnia has no scheduler of its own. `launchd` can run
+`Insomnia --session start` at a set time, and the session it starts is the one
+the menu bar shows, with the battery and heat rules in force. This LaunchAgent
+starts an eight-hour session at 09:00 on weekdays. Save it as
+`~/Library/LaunchAgents/com.example.insomnia.workday.plist`, with your own
+user name in the path (`launchd` does not expand `~`):
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.example.insomnia.workday</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/Users/you/Applications/Insomnia.app/Contents/MacOS/Insomnia</string>
+    <string>--session</string>
+    <string>start</string>
+    <string>28800</string>
+  </array>
+  <key>StartCalendarInterval</key>
+  <array>
+    <dict><key>Weekday</key><integer>1</integer><key>Hour</key><integer>9</integer><key>Minute</key><integer>0</integer></dict>
+    <dict><key>Weekday</key><integer>2</integer><key>Hour</key><integer>9</integer><key>Minute</key><integer>0</integer></dict>
+    <dict><key>Weekday</key><integer>3</integer><key>Hour</key><integer>9</integer><key>Minute</key><integer>0</integer></dict>
+    <dict><key>Weekday</key><integer>4</integer><key>Hour</key><integer>9</integer><key>Minute</key><integer>0</integer></dict>
+    <dict><key>Weekday</key><integer>5</integer><key>Hour</key><integer>9</integer><key>Minute</key><integer>0</integer></dict>
+  </array>
+</dict>
+</plist>
+```
+
+Load it with `launchctl bootstrap gui/$(id -u) <path>` and remove it with
+`launchctl bootout gui/$(id -u) <path>`. Three limits to know about:
+
+- The app has to be running. With it quit, the command prints that Insomnia
+  is not running and starts nothing, so turn on "Launch at login" in Settings.
+- A session already running refuses the command, and the command exits 1.
+  Nothing is extended.
+- If the Mac is asleep at 09:00, `launchd` runs the job when it wakes, and the
+  session then starts from that moment, not from 09:00.
+
+Check the first run in `~/Library/Logs/Insomnia/insomnia.log` before you rely
+on it, and keep the Mac on a ventilated surface when the lid is closed.
+
 ## Configuration and privacy
 
 Configuration lives in `~/Library/Application Support/Insomnia/config.json`.
