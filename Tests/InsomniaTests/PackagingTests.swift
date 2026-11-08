@@ -350,7 +350,11 @@ final class PackagingTests: XCTestCase {
               """)
             : URL(fileURLWithPath: "/usr/bin/codesign")
 
-        var tools = ["SWIFT": swift.path, "CODESIGN": codesign.path]
+        let xcodeSelect = try fake("xcode-select", """
+        cat "\(selectedDeveloperDir.path)" 2>/dev/null || echo /Applications/Xcode.app/Contents/Developer
+        """)
+
+        var tools = ["SWIFT": swift.path, "CODESIGN": codesign.path, "XCODE_SELECT": xcodeSelect.path]
         for (name, real) in ["RM": "/bin/rm", "MKDIR": "/bin/mkdir", "CP": "/bin/cp", "CHMOD": "/bin/chmod"] {
             tools[name] = try fake("recorded-\(name.lowercased())", """
             printf '\(name.lowercased()) %s\\n' "$*" >> "\(calls.path)"
@@ -510,6 +514,8 @@ final class PackagingTests: XCTestCase {
     /// printed command.
     private var fakeToolchainLib: URL { scratch.appendingPathComponent("Xcode beta.app/usr/lib/swift", isDirectory: true) }
     private var swiftBuildStatus: URL { scratch.appendingPathComponent("swift-build.status") }
+    /// What the fake `xcode-select -p` prints; Xcode when the file is absent.
+    private var selectedDeveloperDir: URL { scratch.appendingPathComponent("xcode-select.path") }
     private static let currentSwift = "Apple Swift version 6.3.3 effective-5.10 (swiftlang-6.3.3.1.3 clang-2100.1.1.101)"
     private static let olderSwift = "Apple Swift version 5.10 (swiftlang-5.10.0.13 clang-1500.3.9.4)"
 
@@ -575,6 +581,31 @@ final class PackagingTests: XCTestCase {
         XCTAssertTrue(r.output.contains("Invalid manifest"), r.output)
         XCTAssertFalse(r.output.contains("older Swift"), r.output)
         XCTAssertFalse(r.output.contains("sudo rm"), r.output)
+    }
+
+    /// With only the Command Line Tools selected, a failed build says that
+    /// Xcode is the fix, because the compiler's own error never does.
+    func testBuildAppSaysToInstallXcodeWhenOnlyTheCommandLineToolsAreSelected() throws {
+        let (script, _) = try patchedBuildApp(recordingCodesign: true)
+        try "/Library/Developer/CommandLineTools\n".write(to: selectedDeveloperDir, atomically: true, encoding: .utf8)
+        try "1".write(to: swiftBuildStatus, atomically: true, encoding: .utf8)
+
+        let r = try run("/bin/bash", [script.path, "--output", scratch.appendingPathComponent("out").path], environment: ["PATH": "/usr/bin:/bin", "HOME": scratch.path])
+
+        XCTAssertEqual(r.status, 1, r.output)
+        XCTAssertTrue(r.output.contains("sudo xcode-select -s /Applications/Xcode.app"), r.output)
+    }
+
+    /// A failed build under Xcode gets swift's own errors and no advice
+    /// about the Command Line Tools.
+    func testBuildAppGivesNoXcodeAdviceWhenXcodeIsSelected() throws {
+        let (script, _) = try patchedBuildApp(recordingCodesign: true)
+        try "1".write(to: swiftBuildStatus, atomically: true, encoding: .utf8)
+
+        let r = try run("/bin/bash", [script.path, "--output", scratch.appendingPathComponent("out").path], environment: ["PATH": "/usr/bin:/bin", "HOME": scratch.path])
+
+        XCTAssertEqual(r.status, 1, r.output)
+        XCTAssertFalse(r.output.contains("xcode-select"), r.output)
     }
 
     /// The toolchain is looked at only after a failed build: a successful

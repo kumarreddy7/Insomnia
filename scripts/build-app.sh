@@ -19,6 +19,7 @@ set -euo pipefail
 SWIFT=/usr/bin/swift
 CODESIGN=/usr/bin/codesign
 PLUTIL=/usr/bin/plutil
+XCODE_SELECT=/usr/bin/xcode-select
 RM=/bin/rm
 MKDIR=/bin/mkdir
 CP=/bin/cp
@@ -108,6 +109,19 @@ Xcode that did not delete the previous version's files leaves them behind.
 Delete them (or reinstall the Command Line Tools or Xcode), then rerun:
   sudo rm$remove
 STALE
+  fi
+  # The Command Line Tools have no SwiftUI macro plugin, so a SwiftUI file
+  # fails with "plugin for module 'SwiftUIMacros' not found" and nothing
+  # there says that full Xcode is the fix.
+  if [[ "$("$XCODE_SELECT" -p 2>/dev/null)" == */CommandLineTools ]]; then
+    cat >&2 <<'CLT'
+
+The build failed with only the Command Line Tools selected. Insomnia's SwiftUI
+code needs the macro plugins that ship with Xcode, so an error above about
+"SwiftUIMacros" means this toolchain cannot build it. Install Xcode, select it
+and rerun:
+  sudo xcode-select -s /Applications/Xcode.app
+CLT
   fi
   exit "$build_rc"
 fi
