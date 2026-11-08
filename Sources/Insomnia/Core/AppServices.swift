@@ -67,6 +67,7 @@ final class AppServices {
     private let lidSimulation: (any LidSimulating)?
     private let lidSimulationEnabled: Bool
     private let power = PowerMonitor()
+    private let webhook = StatusWebhook()
     private let browser: BrowserThrottle
     /// Last trusted display/keyboard brightness for the lid close (spec
     /// section 4): read every 30 s while the lid is open, at start, and 3 s
@@ -193,7 +194,20 @@ final class AppServices {
         }
 
         browserTasks.append(Task { await self.refreshBrowsers() })
+        webhook.start { [weak self] in self?.webhookStatus() }
         syncState()
+    }
+
+    /// What the status ping sends now, nil with no valid URL or no session.
+    private func webhookStatus() -> (url: URL, snapshot: StatusWebhook.Snapshot)? {
+        guard let manager, let session = manager.session,
+              let url = StatusWebhook.endpoint(manager.config.statusWebhookURL) else { return nil }
+        return (url, StatusWebhook.Snapshot(
+            secondsLeft: Int(session.remaining(at: Date())),
+            batteryPercent: power.percent,
+            charging: power.isCharging,
+            thermal: PowerMonitor.name(power.thermalState),
+            lidClosed: status.lidClosed))
     }
 
     func stop() {
@@ -205,6 +219,7 @@ final class AppServices {
         stopLidSimulation()
         power.stop()
         power.onChange = nil
+        webhook.stop()
         sampleTimer?.cancel()
         sampleTimer = nil
         postOpenSampleTask?.cancel()

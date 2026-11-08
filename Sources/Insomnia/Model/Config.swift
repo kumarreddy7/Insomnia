@@ -110,6 +110,12 @@ struct Config: Codable, Equatable, Sendable {
     /// typed in that pane.
     var tmuxNudgePressesEnter: Bool = false
 
+    // Status ping
+    /// An https URL that gets a small JSON status every 30 minutes during a
+    /// session (`StatusWebhook`). Empty by default, which sends nothing. Not
+    /// in Settings: set it in config.json.
+    var statusWebhookURL: String = ""
+
     // App
     /// Show the live countdown and the hold-to-end ring next to the eye
     /// while a session runs. Off: the eye alone says whether a session is
@@ -233,6 +239,7 @@ struct Config: Codable, Equatable, Sendable {
         nudgeThreshold = try c.decodeIfPresent(TimeInterval.self, forKey: .nudgeThreshold) ?? d.nudgeThreshold
         tmuxTargets = try c.decodeIfPresent([String].self, forKey: .tmuxTargets) ?? d.tmuxTargets
         tmuxNudgePressesEnter = try c.decodeIfPresent(Bool.self, forKey: .tmuxNudgePressesEnter) ?? d.tmuxNudgePressesEnter
+        statusWebhookURL = try c.decodeIfPresent(String.self, forKey: .statusWebhookURL) ?? d.statusWebhookURL
         showMenuBarCountdown = try c.decodeIfPresent(Bool.self, forKey: .showMenuBarCountdown) ?? d.showMenuBarCountdown
         sessionSounds = try c.decodeIfPresent(Bool.self, forKey: .sessionSounds) ?? d.sessionSounds
         launchAtLogin = try c.decodeIfPresent(Bool.self, forKey: .launchAtLogin) ?? d.launchAtLogin

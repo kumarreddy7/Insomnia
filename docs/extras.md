@@ -116,12 +116,21 @@ never rotates it, since the rename would move the link and not the file it
 points to, and it logs that once. You set up the link, so trimming the file
 it points to is up to you.
 
-Insomnia makes one kind of network request, and only when you click "Check
-for updates" in Settings > General: two unauthenticated GETs at api.github.com,
+Insomnia makes one kind of network request by default, and only when you
+click "Check for updates" in Settings > General: two unauthenticated GETs at api.github.com,
 for the release this repository marks Latest and for the first page of its
 releases list, with the installed version as their user agent and nothing
 else about the Mac. It never checks on its own, opens the releases page only
 on request, and never downloads or installs a build.
+
+The one opt-in exception is the status ping. Put an https URL in
+`statusWebhookURL` in config.json and, while a session runs, Insomnia POSTs a
+small JSON status to it every 30 minutes: seconds left, battery percent,
+whether the Mac is charging, the thermal state and whether the lid is closed.
+The key is empty by default, which sends nothing, and an http URL is ignored.
+There is no Settings control for it. A webhook URL can carry a secret, so the
+log records that a ping failed or what status code came back, never the
+address.
 
 `INSOMNIA_HOME` relocates app support files, logs, and LaunchAgents for testing.
 It is **not an installation sandbox**: installation/removal also involves the
